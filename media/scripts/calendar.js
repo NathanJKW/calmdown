@@ -112,10 +112,17 @@
         const startingDate = prevMonthLastDay - firstDayIndex + 1;
         
         // Calculate total cells needed (max 6 weeks)
-        const totalCells = 42;  // 6 weeks * 7 days
+        const totalCells = 42;
         
         // Initialize date counter for the calendar
-        let date = new Date(currentYear, currentMonth - 1, startingDate);
+        // Fix for month transition issues
+        let prevMonth = currentMonth - 1;
+        let prevYear = currentYear;
+        if (prevMonth < 0) {
+            prevMonth = 11; // December
+            prevYear--;
+        }
+        let date = new Date(prevYear, prevMonth, startingDate);
         
         // Generate calendar cells
         for (let i = 0; i < totalCells / 7; i++) {

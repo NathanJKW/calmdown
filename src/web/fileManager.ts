@@ -2,6 +2,12 @@ import * as vscode from 'vscode';
 
 export async function createNote(dateString: string): Promise<void> {
     try {
+        // Validate date string (format: YYYY-MM-DD)
+        if (!isValidDateString(dateString)) {
+            vscode.window.showErrorMessage(`Invalid date format: ${dateString}. Expected format is YYYY-MM-DD.`);
+            return;
+        }
+
         // Get configuration
         const config = vscode.workspace.getConfiguration('calmdown');
         const baseDirectory = config.get<string>('folderPath') || 'Journal';
@@ -20,7 +26,11 @@ export async function createNote(dateString: string): Promise<void> {
         const weekNumber = getISOWeek(date).toString().padStart(2, '0');
         
         // Format file name based on configuration
-        const fileName = dateString + '.md';
+        let fileName = dateString + '.md';
+        if (fileNameFormat !== 'YYYY-MM-DD') {
+            // Apply custom format if configured
+            fileName = formatDateString(date, fileNameFormat) + '.md';
+        }
         
         // Determine file path
         if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length === 0) {
@@ -41,6 +51,7 @@ export async function createNote(dateString: string): Promise<void> {
             await vscode.workspace.fs.createDirectory(folderUri);
         } catch (err) {
             console.error('Error creating directory:', err);
+            throw new Error(`Failed to create directory ${relativePath}: ${err}`);
         }
         
         // Create the full file path
@@ -66,7 +77,42 @@ export async function createNote(dateString: string): Promise<void> {
     }
 }
 
-// Function to calculate ISO week number
+// Validate date string format (YYYY-MM-DD)
+function isValidDateString(dateString: string): boolean {
+    // Check format
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+        return false;
+    }
+    
+    // Check if it's a valid date
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+        return false;
+    }
+    
+    // Check if the formatted date matches the input
+    // This ensures dates like "2025-02-31" are rejected
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    return dateString === `${year}-${month}-${day}`;
+}
+
+// Format date according to specified format
+function formatDateString(date: Date, format: string): string {
+    const year = date.getFullYear().toString();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    
+    let result = format;
+    result = result.replace('YYYY', year);
+    result = result.replace('MM', month);
+    result = result.replace('DD', day);
+    
+    return result;
+}
+
+// Function to calculate ISO week number - ensuring consistent implementation with calendar.js
 function getISOWeek(date: Date): number {
     const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
     d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
