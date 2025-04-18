@@ -52,6 +52,18 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+    position: relative;
+}
+
+.has-note::after {
+    content: '';
+    position: absolute;
+    bottom: 2px;
+    left: 25%;
+    width: 50%;
+    height: 3px;
+    background-color: var(--vscode-activityBarBadge-background);
+    border-radius: 1px;
 }
 
 .day:hover {

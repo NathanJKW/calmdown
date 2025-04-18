@@ -73,3 +73,54 @@ function getISOWeek(date: Date): number {
     const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
     return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
 }
+
+export async function checkNotesExist(dates: string[]): Promise<string[]> {
+    try {
+        // Get configuration
+        const config = vscode.workspace.getConfiguration('calmdown');
+        const baseDirectory = config.get<string>('folderPath') || 'Journal';
+        
+        if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length === 0) {
+            return [];
+        }
+        
+        const workspaceFolder = vscode.workspace.workspaceFolders[0].uri;
+        const existingNotes: string[] = [];
+        
+        // Check each date
+        for (const dateString of dates) {
+            // Parse the date
+            const date = new Date(dateString);
+            const year = date.getFullYear().toString();
+            
+            // Format month folder
+            const monthNumber = (date.getMonth() + 1).toString().padStart(2, '0');
+            const monthName = date.toLocaleString('en-US', { month: 'long' });
+            const monthFolder = `${monthNumber}-${monthName}`; 
+            
+            // Get week number
+            const weekNumber = getISOWeek(date).toString().padStart(2, '0');
+            
+            // Build path to check
+            const relativePath = [baseDirectory, year, monthFolder, `Week-${weekNumber}`, `${dateString}.md`]
+                .filter(segment => segment.length > 0)
+                .join('/');
+            
+            const filePath = vscode.Uri.joinPath(workspaceFolder, relativePath);
+            
+            // Check if file exists
+            try {
+                await vscode.workspace.fs.stat(filePath);
+                // If no error, file exists
+                existingNotes.push(dateString);
+            } catch (err) {
+                // File doesn't exist, do nothing
+            }
+        }
+        
+        return existingNotes;
+    } catch (err) {
+        console.error('Error checking notes:', err);
+        return [];
+    }
+}

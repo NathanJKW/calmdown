@@ -29,6 +29,49 @@
         updateCalendar();
     });
     
+    // Listen for messages from the extension
+    window.addEventListener('message', event => {
+        const message = event.data;
+        if (message.command === 'existingNotes') {
+            updateNoteIndicators(message.dates);
+        } else if (message.command === 'refreshIndicators') {
+            // When a note is created, refresh the indicators
+            refreshNoteIndicators();
+        }
+    });
+    
+    function refreshNoteIndicators() {
+        const datesToCheck = [];
+        document.querySelectorAll('.day').forEach(day => {
+            if (day.dataset.date) {
+                datesToCheck.push(day.dataset.date);
+            }
+        });
+        
+        if (datesToCheck.length > 0) {
+            // Request check for existing notes
+            vscode.postMessage({
+                command: 'checkDates',
+                dates: datesToCheck
+            });
+        }
+    }
+    
+    function updateNoteIndicators(dates) {
+        // Clear existing indicators
+        document.querySelectorAll('.day.has-note').forEach(el => {
+            el.classList.remove('has-note');
+        });
+        
+        // Add indicators for dates with notes
+        dates.forEach(date => {
+            const dayCell = document.querySelector(`.day[data-date="${date}"]`);
+            if (dayCell) {
+                dayCell.classList.add('has-note');
+            }
+        });
+    }
+    
     function updateCalendar() {
         const today = new Date();
         const monthYear = document.getElementById('month-year');
@@ -123,6 +166,18 @@
                 break;
             }
         }
+        
+        // After rendering the calendar, check which dates have notes
+        const datesToCheck = [];
+        document.querySelectorAll('.day').forEach(day => {
+            datesToCheck.push(day.dataset.date);
+        });
+        
+        // Request check for existing notes
+        vscode.postMessage({
+            command: 'checkDates',
+            dates: datesToCheck
+        });
     }
     
     // Format date as YYYY-MM-DD

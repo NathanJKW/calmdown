@@ -1,7 +1,9 @@
 import * as vscode from 'vscode';
-import { createNote } from './fileManager';
+import { createNote, checkNotesExist } from './fileManager';
 
 export class CalendarViewProvider implements vscode.WebviewViewProvider {
+    private _view?: vscode.WebviewView;
+    
     constructor(
         private readonly _extensionUri: vscode.Uri,
     ) { }
@@ -11,6 +13,8 @@ export class CalendarViewProvider implements vscode.WebviewViewProvider {
         context: vscode.WebviewViewResolveContext,
         _token: vscode.CancellationToken,
     ) {
+        this._view = webviewView;
+        
         webviewView.webview.options = {
             enableScripts: true,
             localResourceRoots: [this._extensionUri]
@@ -24,6 +28,15 @@ export class CalendarViewProvider implements vscode.WebviewViewProvider {
                 switch (message.command) {
                     case 'dateClicked':
                         await createNote(message.date);
+                        // After creating a note, tell calendar to refresh indicators
+                        webviewView.webview.postMessage({ command: 'refreshIndicators' });
+                        break;
+                    case 'checkDates':
+                        const existingNotes = await checkNotesExist(message.dates);
+                        webviewView.webview.postMessage({ 
+                            command: 'existingNotes',
+                            dates: existingNotes
+                        });
                         break;
                 }
             },
