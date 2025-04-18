@@ -41,13 +41,13 @@
       "properties": {
         "calmdown.folderPath": {
           "type": "string",
-          "default": "",
-          "description": "Path to store the markdown note files (relative to workspace root)"
+          "default": "Journal",
+          "description": "The base directory where notes will be stored"
         },
         "calmdown.fileNameFormat": {
           "type": "string",
           "default": "YYYY-MM-DD",
-          "description": "Format for the generated markdown file names"
+          "description": "Format for the note file names"
         }
       }
     }
