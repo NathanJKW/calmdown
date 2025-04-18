@@ -1,0 +1,85 @@
+body {
+    font-family: var(--vscode-font-family);
+    color: var(--vscode-foreground);
+    padding: 0;
+    margin: 0;
+}
+
+.container {
+    padding: 10px;
+}
+
+.calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.month-year {
+    font-weight: bold;
+}
+
+.calendar {
+    display: grid;
+    grid-template-columns: auto repeat(7, 1fr);
+    gap: 2px;
+}
+
+.weekday {
+    text-align: center;
+    font-weight: bold;
+    padding: 5px;
+    font-size: 0.8em;
+}
+
+.week-number {
+    text-align: center;
+    color: var(--vscode-descriptionForeground);
+    font-size: 0.8em;
+    padding: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.day {
+    padding: 5px;
+    text-align: center;
+    cursor: pointer;
+    border-radius: 3px;
+    aspect-ratio: 1 / 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.day:hover {
+    background-color: var(--vscode-list-hoverBackground);
+}
+
+.current-month {
+    font-weight: normal;
+}
+
+.other-month {
+    color: var(--vscode-disabledForeground);
+}
+
+.today {
+    background-color: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+}
+
+button {
+    background: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+    border: none;
+    padding: 4px 8px;
+    cursor: pointer;
+    border-radius: 3px;
+}
+
+button:hover {
+    background: var(--vscode-button-hoverBackground);
+}
