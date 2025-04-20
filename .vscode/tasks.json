@@ -64,6 +64,13 @@
 				"$tsc",
 				 "$eslint-stylish"
 			]
+		},
+		{
+			"label": "compile-for-debug",
+			"type": "npm",
+			"script": "compile-web",
+			"isBackground": false,
+			"group": "build"
 		}
 	]
 }

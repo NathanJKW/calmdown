@@ -1,12 +1,104 @@
 import * as vscode from 'vscode';
 
-export async function createNote(dateString: string): Promise<void> {
+export async function ensureTemplatesExist(context: vscode.ExtensionContext): Promise<vscode.Uri> {
+    try {
+        // Get configuration
+        const config = vscode.workspace.getConfiguration('calmdown');
+        const baseDirectory = config.get<string>('folderPath') || 'Journal';
+        
+        if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length === 0) {
+            throw new Error('No workspace folder is open');
+        }
+        
+        const workspaceFolder = vscode.workspace.workspaceFolders[0].uri;
+        
+        // Define templates directory
+        const templatesDir = vscode.Uri.joinPath(workspaceFolder, baseDirectory, 'templates');
+        
+        try {
+            // Check if templates directory exists
+            await vscode.workspace.fs.stat(templatesDir);
+        } catch {
+            // Create templates directory if it doesn't exist
+            await vscode.workspace.fs.createDirectory(templatesDir);
+            
+            // Copy default templates
+            const defaultTemplatesDir = vscode.Uri.joinPath(context.extensionUri, '.templates');
+            const files = await vscode.workspace.fs.readDirectory(defaultTemplatesDir);
+            
+            // Copy each template file
+            for (const [name, type] of files) {
+                if (type === vscode.FileType.File) {
+                    const sourceUri = vscode.Uri.joinPath(defaultTemplatesDir, name);
+                    const destUri = vscode.Uri.joinPath(templatesDir, name);
+                    
+                    const content = await vscode.workspace.fs.readFile(sourceUri);
+                    await vscode.workspace.fs.writeFile(destUri, content);
+                }
+            }
+            
+            vscode.window.showInformationMessage(
+                `Template files created in ${baseDirectory}/templates. You can customize these templates for future notes.`
+            );
+        }
+        
+        return templatesDir;
+    } catch (err) {
+        console.error('Failed to set up templates:', err);
+        throw err;
+    }
+}
+
+export async function getTemplateContent(context: vscode.ExtensionContext, templateName = 'daily'): Promise<string> {
+    try {
+        // Get configuration
+        const config = vscode.workspace.getConfiguration('calmdown');
+        const baseDirectory = config.get<string>('folderPath') || 'Journal';
+        
+        if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length === 0) {
+            throw new Error('No workspace folder is open');
+        }
+        
+        const workspaceFolder = vscode.workspace.workspaceFolders[0].uri;
+        
+        // Try user template first
+        const userTemplateUri = vscode.Uri.joinPath(
+            workspaceFolder, 
+            baseDirectory, 
+            'templates', 
+            `${templateName}.md`
+        );
+        
+        try {
+            const content = await vscode.workspace.fs.readFile(userTemplateUri);
+            return new TextDecoder().decode(content);
+        } catch {
+            // Fall back to default template
+            const templateUri = vscode.Uri.joinPath(context.extensionUri, '.templates', `${templateName}.md`);
+            try {
+                const templateData = await vscode.workspace.fs.readFile(templateUri);
+                return new TextDecoder().decode(templateData);
+            } catch (err) {
+                console.error(`Template ${templateName} not found:`, err);
+                return `# Notes for {{DATE}}\n\n`; // Default content if template not found
+            }
+        }
+    } catch (err) {
+        console.error(`Error loading template ${templateName}:`, err);
+        return `# Notes for {{DATE}}\n\n`; // Default content if template not found
+    }
+}
+
+export async function createNote(dateString: string, context: vscode.ExtensionContext): Promise<void> {
     try {
         // Validate date string (format: YYYY-MM-DD)
         if (!isValidDateString(dateString)) {
             vscode.window.showErrorMessage(`Invalid date format: ${dateString}. Expected format is YYYY-MM-DD.`);
             return;
         }
+
+        // Ensure templates exist
+        await ensureTemplatesExist(context);
 
         // Get configuration
         const config = vscode.workspace.getConfiguration('calmdown');
@@ -40,18 +132,20 @@ export async function createNote(dateString: string): Promise<void> {
         
         const workspaceFolder = vscode.workspace.workspaceFolders[0].uri;
         
-        // Create hierarchical path: <baseDirectory>/Year/MM-MonthName/Week-XX/
-        const relativePath = [baseDirectory, year, monthFolder, `Week-${weekNumber}`]
-            .filter(segment => segment.length > 0) // Remove empty segments
-            .join('/');
+        // Build path segments
+        const pathSegments = [baseDirectory, year, monthFolder, `Week-${weekNumber}`];
         
-        // Create the full directory path
-        const folderUri = vscode.Uri.joinPath(workspaceFolder, relativePath);
-        try {
-            await vscode.workspace.fs.createDirectory(folderUri);
-        } catch (err) {
-            console.error('Error creating directory:', err);
-            throw new Error(`Failed to create directory ${relativePath}: ${err}`);
+        // Create folderUri by joining path segments one by one
+        let folderUri = workspaceFolder;
+        for (const segment of pathSegments) {
+            if (segment && segment.length > 0) {
+                folderUri = vscode.Uri.joinPath(folderUri, segment);
+                try {
+                    await vscode.workspace.fs.createDirectory(folderUri);
+                } catch (err) {
+                    console.error(`Error creating directory ${segment}:`, err);
+                }
+            }
         }
         
         // Create the full file path
@@ -63,9 +157,18 @@ export async function createNote(dateString: string): Promise<void> {
             // File exists, open it
             const document = await vscode.workspace.openTextDocument(filePath);
             await vscode.window.showTextDocument(document);
-        } catch (err) {
+        } catch {
             // File doesn't exist, create it
-            const initialContent = `# Notes for ${dateString}\n\n`;
+            // Get template content
+            const templateContent = await getTemplateContent(context, 'daily');
+            
+            // Replace placeholders
+            const initialContent = templateContent
+                .replace(/\{\{DATE\}\}/g, dateString)
+                .replace(/\{\{YEAR\}\}/g, dateString.substring(0, 4))
+                .replace(/\{\{MONTH\}\}/g, dateString.substring(5, 7))
+                .replace(/\{\{DAY\}\}/g, dateString.substring(8, 10));
+            
             const encoder = new TextEncoder();
             await vscode.workspace.fs.writeFile(filePath, encoder.encode(initialContent));
             

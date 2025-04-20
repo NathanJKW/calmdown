@@ -6,6 +6,7 @@ export class CalendarViewProvider implements vscode.WebviewViewProvider {
     
     constructor(
         private readonly _extensionUri: vscode.Uri,
+        private readonly _context: vscode.ExtensionContext
     ) { }
 
     private getErrorMessage(error: unknown): string {
@@ -36,7 +37,7 @@ export class CalendarViewProvider implements vscode.WebviewViewProvider {
                     try {
                         switch (message.command) {
                             case 'dateClicked':
-                                await createNote(message.date);
+                                await createNote(message.date, this._context);
                                 // After creating a note, tell calendar to refresh indicators
                                 webviewView.webview.postMessage({ command: 'refreshIndicators' });
                                 break;
