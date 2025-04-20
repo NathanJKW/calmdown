@@ -3,7 +3,7 @@ import { CalendarViewProvider } from './calendarViewProvider';
 
 export function activate(context: vscode.ExtensionContext) {
     // Register our custom sidebar webview provider
-    const calendarProvider = new CalendarViewProvider(context.extensionUri);
+    const calendarProvider = new CalendarViewProvider(context.extensionUri, context);
     context.subscriptions.push(
         vscode.window.registerWebviewViewProvider(
             'calmdown.calendarView',
