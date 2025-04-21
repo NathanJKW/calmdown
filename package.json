@@ -24,6 +24,10 @@
       {
         "command": "calmdown.toggleTaskState",
         "title": "Calmdown: Toggle Task State"
+      },
+      {
+        "command": "calmdown.refreshTasks",
+        "title": "Calmdown: Refresh Open Tasks"
       }
     ],
     "keybindings": [
@@ -51,7 +55,7 @@
         },
         {
           "id": "calmdown.tasksView",
-          "name": "Recent Tasks",
+          "name": "Open Tasks",
           "type": "webview"
         }
       ]
