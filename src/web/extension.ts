@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { CalendarViewProvider } from './calendarViewProvider';
 import { TasksViewProvider } from './taskViewProvider';
-import { toggleTaskState } from './tasks/taskManager';
+import { toggleTaskState, rollTasksToToday } from './tasks/taskManager';
 
 export function activate(context: vscode.ExtensionContext) {
     // Register both webview providers in the container
@@ -31,6 +31,11 @@ export function activate(context: vscode.ExtensionContext) {
     // Register the toggle task command
     context.subscriptions.push(
         vscode.commands.registerCommand('calmdown.toggleTaskState', toggleTaskState)
+    );
+
+    // Register the roll tasks command
+    context.subscriptions.push(
+        vscode.commands.registerCommand('calmdown.rollTasks', rollTasksToToday)
     );
 }
 

@@ -28,6 +28,10 @@
       {
         "command": "calmdown.refreshTasks",
         "title": "Calmdown: Refresh Open Tasks"
+      },
+      {
+        "command": "calmdown.rollTasks",
+        "title": "Calmdown: Roll Uncompleted Tasks to Today"
       }
     ],
     "keybindings": [

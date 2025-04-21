@@ -81,6 +81,11 @@ export class TasksViewProvider implements vscode.WebviewViewProvider {
                             await this.refreshTasks();
                             break;
                             
+                        case 'rollTasks':
+                            // Execute roll tasks command
+                            vscode.commands.executeCommand('calmdown.rollTasks');
+                            break;
+                            
                         case 'openTask':
                             const task: Task = {
                                 text: message.task.text,
@@ -147,7 +152,12 @@ export class TasksViewProvider implements vscode.WebviewViewProvider {
                         margin: 0;
                     }
                     
-                    .refresh-btn {
+                    .header-buttons {
+                        display: flex;
+                        gap: 4px;
+                    }
+                    
+                    .refresh-btn, .roll-btn {
                         background: var(--vscode-button-background);
                         color: var(--vscode-button-foreground);
                         border: none;
@@ -159,6 +169,20 @@ export class TasksViewProvider implements vscode.WebviewViewProvider {
                     
                     .refresh-btn:hover {
                         background: var(--vscode-button-hoverBackground);
+                    }
+                    
+                    .roll-btn {
+                        background: var(--vscode-button-secondaryBackground, #5a5a5a);
+                        color: var(--vscode-button-secondaryForeground, #ffffff);
+                        border: none;
+                        padding: 4px 8px;
+                        border-radius: 2px;
+                        cursor: pointer;
+                        font-size: 11px;
+                    }
+                    
+                    .roll-btn:hover {
+                        background: var(--vscode-button-secondaryHoverBackground);
                     }
                     
                     .task-list {
@@ -222,7 +246,10 @@ export class TasksViewProvider implements vscode.WebviewViewProvider {
             <body>
                 <div class="header">
                     <h3>Open Tasks</h3>
-                    <button class="refresh-btn" id="refresh-btn">Refresh</button>
+                    <div class="header-buttons">
+                        <button class="roll-btn" id="roll-btn">Roll to Today</button>
+                        <button class="refresh-btn" id="refresh-btn">Refresh</button>
+                    </div>
                 </div>
                 
                 <div id="loading" class="loading" style="display: none;">
@@ -242,6 +269,7 @@ export class TasksViewProvider implements vscode.WebviewViewProvider {
                         const emptyState = document.getElementById('empty-state');
                         const loadingIndicator = document.getElementById('loading');
                         const refreshButton = document.getElementById('refresh-btn');
+                        const rollButton = document.getElementById('roll-btn');
                         
                         let tasks = [];
                         
@@ -268,6 +296,11 @@ export class TasksViewProvider implements vscode.WebviewViewProvider {
                         // Request refresh on button click
                         refreshButton.addEventListener('click', () => {
                             vscode.postMessage({ command: 'refreshTasks' });
+                        });
+                        
+                        // Roll tasks on button click
+                        rollButton.addEventListener('click', () => {
+                            vscode.postMessage({ command: 'rollTasks' });
                         });
                         
                         function renderTasks() {
