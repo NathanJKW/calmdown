@@ -3,7 +3,7 @@ import { Task } from './taskModel';
 import { TaskScanner } from './taskScanner';
 import { ConfigService } from '../common/configService';
 import { handleTaskError } from '../common/errorHandler';
-import { formatDateForTask, formatDateYYYYMMDD, getISOWeek } from './dateFormatter';
+import { formatDateForTask, formatDateYYYYMMDD, getISOWeek, parseTaskDate } from './dateFormatter';
 import { createNote } from '../fileManager';
 import { findInsertPositionInNote } from './taskNavigator';
 
