@@ -1,23 +1,38 @@
 import * as vscode from 'vscode';
 import { Task, parseTask } from './taskModel';
+import { ConfigService } from '../common/configService';
+import { handleTaskError } from '../common/errorHandler';
 
-// Cache for storing scanned tasks to improve performance
+// Enhanced cache for storing scanned tasks
 interface TaskCache {
     tasks: Task[];
     lastScanTime: number;
     fileVersions: Map<string, number>;  // Track document versions
+    fileTimestamps: Map<string, number>; // Track file timestamps
 }
 
 export class TaskScanner {
     private cache: TaskCache | null = null;
     private scanInProgress = false;
     private journalFolderPath: string | null = null;
+    private configService: ConfigService;
     
     constructor() {
+        this.configService = ConfigService.getInstance();
+        
         // Listen for file changes
         vscode.workspace.onDidSaveTextDocument(doc => {
             if (this.isMarkdownInJournalFolder(doc.uri.fsPath)) {
                 this.invalidateFileInCache(doc.uri.fsPath);
+            }
+        });
+        
+        // Listen for config changes that might affect journal path
+        vscode.workspace.onDidChangeConfiguration(e => {
+            if (e.affectsConfiguration('calmdown.folderPath')) {
+                // Reset cache when journal folder changes
+                this.cache = null;
+                this.journalFolderPath = null;
             }
         });
     }
@@ -35,6 +50,8 @@ export class TaskScanner {
             this.cache.tasks = this.cache.tasks.filter(task => task.filePath !== filePath);
             // Remove the file version from tracking
             this.cache.fileVersions.delete(filePath);
+            // Remove file timestamp
+            this.cache.fileTimestamps.delete(filePath);
         }
     }
     
@@ -42,23 +59,9 @@ export class TaskScanner {
      * Get journal folder path from configuration
      */
     private async getJournalFolderPath(): Promise<string | null> {
-        const config = vscode.workspace.getConfiguration('calmdown');
-        const baseDirectory = config.get<string>('folderPath') || 'Journal';
-        
-        if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length === 0) {
-            return null;
-        }
-        
-        const workspaceFolder = vscode.workspace.workspaceFolders[0].uri;
-        const journalFolderUri = vscode.Uri.joinPath(workspaceFolder, baseDirectory);
-        
-        try {
-            // Check if the folder exists
-            await vscode.workspace.fs.stat(journalFolderUri);
-            return journalFolderUri.fsPath;
-        } catch {
-            return null;
-        }
+        // Use ConfigService to get journal folder URI
+        const journalFolderUri = await this.configService.getJournalFolderUri();
+        return journalFolderUri?.fsPath || null;
     }
     
     /**
@@ -72,12 +75,51 @@ export class TaskScanner {
         
         this.journalFolderPath = journalFolderPath;
         
-        // Use the find files API - much faster than manual recursion
-        const markdownFiles = await vscode.workspace.findFiles(
-            new vscode.RelativePattern(journalFolderPath, '**/*.md')
-        );
+        // Use the find files API
+        try {
+            const markdownFiles = await vscode.workspace.findFiles(
+                new vscode.RelativePattern(journalFolderPath, '**/*.md')
+            );
+            return markdownFiles;
+        } catch (error) {
+            handleTaskError("Failed to find markdown files", 
+                          error instanceof Error ? error : new Error(String(error)));
+            return [];
+        }
+    }
+    
+    /**
+     * Check if file needs to be rescanned based on timestamp
+     */
+    private async shouldRescanFile(file: vscode.Uri, fileVersion: number): Promise<boolean> {
+        if (!this.cache) {
+            return true;
+        }
         
-        return markdownFiles;
+        // Check if file exists in version cache
+        const cachedVersion = this.cache.fileVersions.get(file.fsPath);
+        if (cachedVersion !== undefined && cachedVersion === fileVersion) {
+            return false;
+        }
+        
+        try {
+            // Check file timestamp
+            const fileStats = await vscode.workspace.fs.stat(file);
+            const lastModified = fileStats.mtime;
+            const cachedTimestamp = this.cache.fileTimestamps.get(file.fsPath);
+            
+            if (cachedTimestamp !== undefined && cachedTimestamp === lastModified) {
+                // File hasn't changed on disk, update version but skip scan
+                this.cache.fileVersions.set(file.fsPath, fileVersion);
+                return false;
+            }
+            
+            // File has changed, needs rescanning
+            return true;
+        } catch {
+            // If error reading file stats, assume it needs rescanning
+            return true;
+        }
     }
     
     /**
@@ -88,9 +130,9 @@ export class TaskScanner {
             const document = await vscode.workspace.openTextDocument(file);
             const fileVersion = document.version;
             
-            // Skip this file if it's already in the cache with the same version
-            if (this.cache?.fileVersions.get(file.fsPath) === fileVersion) {
-                return this.cache.tasks.filter(task => task.filePath === file.fsPath);
+            // Check if file needs to be rescanned
+            if (!await this.shouldRescanFile(file, fileVersion)) {
+                return this.cache!.tasks.filter(task => task.filePath === file.fsPath);
             }
             
             const tasks: Task[] = [];
@@ -104,14 +146,22 @@ export class TaskScanner {
                 }
             }
             
-            // Update the file version in the cache
+            // Update the cache with file information
             if (this.cache) {
                 this.cache.fileVersions.set(file.fsPath, fileVersion);
+                
+                try {
+                    const fileStats = await vscode.workspace.fs.stat(file);
+                    this.cache.fileTimestamps.set(file.fsPath, fileStats.mtime);
+                } catch (error) {
+                    console.warn(`Failed to get timestamp for ${file.fsPath}:`, error);
+                }
             }
             
             return tasks;
         } catch (err) {
-            console.error(`Error scanning file ${file.fsPath}:`, err);
+            handleTaskError(`Error scanning file ${file.fsPath}`, 
+                         err instanceof Error ? err : new Error(String(err)));
             return [];
         }
     }
@@ -120,10 +170,12 @@ export class TaskScanner {
      * Get all open tasks
      */
     public async getOpenTasks(): Promise<Task[]> {
+        const cacheTimeout = this.configService.getTaskCacheTimeout();
+        
         // Check if we have a recent cache
         const currentTime = Date.now();
-        if (this.cache && (currentTime - this.cache.lastScanTime < 30000) && !this.scanInProgress) {
-            // Return cached open tasks if less than 30 seconds old
+        if (this.cache && (currentTime - this.cache.lastScanTime < cacheTimeout) && !this.scanInProgress) {
+            // Return cached open tasks if cache is still valid
             return this.cache.tasks.filter(task => task.status === 'TODO');
         }
         
@@ -149,7 +201,8 @@ export class TaskScanner {
                 this.cache = {
                     tasks: [],
                     lastScanTime: currentTime,
-                    fileVersions: new Map()
+                    fileVersions: new Map(),
+                    fileTimestamps: new Map()
                 };
             }
             
@@ -176,12 +229,14 @@ export class TaskScanner {
             this.cache = {
                 tasks: allTasks,
                 lastScanTime: Date.now(),
-                fileVersions: this.cache.fileVersions
+                fileVersions: this.cache.fileVersions,
+                fileTimestamps: this.cache.fileTimestamps
             };
             
             return allTasks.filter(task => task.status === 'TODO');
         } catch (err) {
-            console.error('Error scanning for tasks:', err);
+            handleTaskError('Error scanning for tasks', 
+                         err instanceof Error ? err : new Error(String(err)));
             return [];
         } finally {
             this.scanInProgress = false;
@@ -205,7 +260,8 @@ export class TaskScanner {
                 vscode.TextEditorRevealType.InCenter
             );
         } catch (err) {
-            vscode.window.showErrorMessage(`Could not navigate to task: ${err}`);
+            handleTaskError(`Could not navigate to task: ${err}`,
+                         err instanceof Error ? err : new Error(String(err)));
         }
     }
 }

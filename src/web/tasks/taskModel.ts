@@ -7,13 +7,14 @@ export interface Task {
     creationDate: string;
     filePath: string;
     line: number;
-    status: 'TODO' | 'COMPLEATE';
+    status: 'TODO' | 'COMPLETE';
 }
 
 export function parseTask(line: string, filePath: string, lineNumber: number): Task | null {
     // Regex patterns for task markers
     const todoRegex = /-=TODO (\d+) (\d+) (\d+)=-(.*)/;
-    const completeRegex = /-=COMPLEATE (\d+) (\d+) (\d+)=-(.*)/;
+    const completeRegex = /-=COMPLETE (\d+) (\d+) (\d+)=-(.*)/;
+    // Ignoring ROLL tasks as they're rolled over to other files
     
     let match = line.match(todoRegex);
     if (match) {
@@ -37,7 +38,7 @@ export function parseTask(line: string, filePath: string, lineNumber: number): T
             creationDate: match[3],
             filePath,
             line: lineNumber,
-            status: 'COMPLEATE'
+            status: 'COMPLETE'
         };
     }
     
