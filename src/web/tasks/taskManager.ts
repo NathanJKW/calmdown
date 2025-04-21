@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { TaskScanner } from './taskScanner';
 import { Task } from './taskModel';
+import { createNote } from '../fileManager';
 
 /**
  * Toggles a task state in a markdown document
@@ -86,22 +87,12 @@ export async function rollTasksToToday(): Promise<void> {
             location: vscode.ProgressLocation.Notification,
             title: "Rolling tasks to today",
             cancellable: false
-        }, async (progress) => {
+        }, async (progress, token) => {
             progress.report({ increment: 10, message: "Finding uncompleted tasks..." });
             
-            // Get today's date and file path
+            // Get today's date in YYYY-MM-DD format
             const today = new Date();
             const todayDateStr = formatDateYYYYMMDD(today);
-            
-            // Get journal folder path from configuration
-            const journalFolderPath = await getJournalFolderPath();
-            if (!journalFolderPath) {
-                vscode.window.showErrorMessage("Journal folder not found. Please set up the correct folder in settings.");
-                return;
-            }
-            
-            // Get today's file path
-            const todayFilePath = await getTodayFilePath(journalFolderPath, todayDateStr);
             
             progress.report({ increment: 20, message: "Scanning for tasks..." });
             
@@ -109,31 +100,88 @@ export async function rollTasksToToday(): Promise<void> {
             const taskScanner = new TaskScanner();
             const allOpenTasks = await taskScanner.getOpenTasks();
             
-            // Filter tasks to get only those from past dates (based on file name, not task date)
+            // Add console logging to debug
+            console.log(`Total open tasks found: ${allOpenTasks.length}`);
+
+            // Filter tasks to get only those from past notes
             const pastTasks = allOpenTasks.filter(task => {
-                // Extract date from filename (assuming YYYY-MM-DD.md format)
-                const filename = vscode.Uri.file(task.filePath).path.split('/').pop() || '';
-                const filenameDate = filename.split('.')[0]; // Remove .md extension
-                
-                // Compare with today's date string (YYYY-MM-DD format)
-                return filenameDate < todayDateStr;
+                try {
+                    // Extract filename from path (handling both Windows and Unix paths)
+                    const pathParts = task.filePath.split(/[\/\\]/); // Split on both / and \
+                    const filename = pathParts[pathParts.length - 1];
+                    
+                    if (!filename.endsWith('.md')) {
+                        return false;
+                    }
+                    
+                    // Extract date from filename (remove .md extension)
+                    const filenamePart = filename.substring(0, filename.length - 3);
+                    
+                    // Check if filename follows YYYY-MM-DD format
+                    if (!/^\d{4}-\d{2}-\d{2}$/.test(filenamePart)) {
+                        console.log(`Skipping task in file with non-date name: ${filename}`);
+                        return false;
+                    }
+                    
+                    // Compare dates
+                    const result = filenamePart < todayDateStr;
+                    console.log(`File: ${filenamePart}, Today: ${todayDateStr}, Is Past: ${result}`);
+                    return result;
+                } catch (err) {
+                    console.error(`Error processing task path: ${task.filePath}`, err);
+                    return false;
+                }
             });
-            
+
+            console.log(`Past tasks to roll over: ${pastTasks.length}`);
             if (pastTasks.length === 0) {
+                // Log some example tasks to help debug why filtering failed
+                if (allOpenTasks.length > 0) {
+                    console.log("Sample tasks that were not rolled over:");
+                    allOpenTasks.slice(0, 3).forEach(task => {
+                        console.log(`- File: ${task.filePath}, Text: ${task.text}`);
+                    });
+                }
+                
                 vscode.window.showInformationMessage("No past uncompleted tasks found to roll over.");
                 return;
             }
             
             progress.report({ increment: 30, message: `Found ${pastTasks.length} tasks to roll over` });
             
-            // Create or open today's note
-            let todayDoc = await createOrOpenTodaysNote(todayFilePath);
-            if (!todayDoc) {
-                vscode.window.showErrorMessage("Failed to create or open today's note.");
-                return;
-            }
+            // Create today's note using the proper file structure
+            await createNote(todayDateStr, undefined);
             
-            progress.report({ increment: 40, message: "Moving tasks to today's note..." });
+            // Open today's document
+            const config = vscode.workspace.getConfiguration('calmdown');
+            const baseDirectory = config.get<string>('folderPath') || 'Journal';
+            
+            // Now find the proper path to today's note
+            const workspaceFolder = vscode.workspace.workspaceFolders![0].uri;
+            const year = today.getFullYear().toString();
+            const monthNumber = (today.getMonth() + 1).toString().padStart(2, '0');
+            const monthName = today.toLocaleString('en-US', { month: 'long' });
+            const monthFolder = `${monthNumber}-${monthName}`;
+            
+            // Calculate week number
+            const weekNumber = getISOWeek(today).toString().padStart(2, '0');
+            
+            // Build the actual path to today's note
+            const todayFilePath = vscode.Uri.joinPath(
+                workspaceFolder,
+                baseDirectory,
+                year,
+                monthFolder,
+                `Week-${weekNumber}`,
+                `${todayDateStr}.md`
+            );
+            
+            progress.report({ increment: 40, message: "Opening today's note..." });
+            
+            const todayDoc = await vscode.workspace.openTextDocument(todayFilePath);
+            await vscode.window.showTextDocument(todayDoc);
+            
+            progress.report({ increment: 50, message: "Moving tasks to today's note..." });
             
             // Group tasks by file for efficient processing
             const tasksByFile = new Map<string, Task[]>();
@@ -146,7 +194,6 @@ export async function rollTasksToToday(): Promise<void> {
             
             // Add tasks to today's note
             let insertPosition = findInsertPositionInNote(todayDoc);
-            await vscode.window.showTextDocument(todayDoc);
             
             await vscode.window.activeTextEditor?.edit(editBuilder => {
                 // First add a heading for rolled over tasks if needed
@@ -169,9 +216,8 @@ export async function rollTasksToToday(): Promise<void> {
             progress.report({ increment: 70, message: "Marking original tasks as moved..." });
             
             // Now handle the original tasks - mark them as moved or delete them
-            // Process one file at a time
             for (const [filePath, tasks] of tasksByFile.entries()) {
-                const sourceDoc = await vscode.workspace.openTextDocument(filePath);
+                const sourceDoc = await vscode.workspace.openTextDocument(vscode.Uri.parse(filePath));
                 const editor = await vscode.window.showTextDocument(sourceDoc);
                 
                 // Sort tasks by line number in descending order to avoid line number shifts
@@ -194,7 +240,7 @@ export async function rollTasksToToday(): Promise<void> {
             
             // Save today's note
             const todayEditor = vscode.window.activeTextEditor;
-            if (todayEditor && todayEditor.document.uri.fsPath === todayFilePath) {
+            if (todayEditor && todayEditor.document.uri.fsPath === todayFilePath.fsPath) {
                 await todayEditor.document.save();
             }
             
@@ -242,20 +288,6 @@ function formatDateYYYYMMDD(date: Date): string {
     const mm = (date.getMonth() + 1).toString().padStart(2, '0');
     const dd = date.getDate().toString().padStart(2, '0');
     return `${yyyy}-${mm}-${dd}`;
-}
-
-/**
- * Get the file path for today's note
- */
-async function getTodayFilePath(journalFolderPath: string, dateStr: string): Promise<string> {
-    const config = vscode.workspace.getConfiguration('calmdown');
-    const fileNameFormat = config.get<string>('fileNameFormat') || 'YYYY-MM-DD';
-    
-    // Replace format tokens with actual date parts
-    const fileName = `${dateStr}.md`;
-    
-    const fileUri = vscode.Uri.joinPath(vscode.Uri.file(journalFolderPath), fileName);
-    return fileUri.fsPath;
 }
 
 /**
@@ -327,4 +359,14 @@ function findInsertPositionInNote(document: vscode.TextDocument): vscode.Positio
     
     // No heading found, insert at the end of file
     return new vscode.Position(document.lineCount, 0);
+}
+
+/**
+ * Function to calculate ISO week number
+ */
+function getISOWeek(date: Date): number {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
 }

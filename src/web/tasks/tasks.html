@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tasks</title>
+    <link rel="stylesheet" href="${cssUri}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Tasks</h1>
+            <div class="actions">
+                <button id="refreshButton" title="Refresh Tasks">
+                    <span class="icon refresh-icon"></span>
+                </button>
+                <button id="rolloverButton" title="Roll Tasks to Today">
+                    <span class="icon rollover-icon"></span>
+                </button>
+            </div>
+        </header>
+
+        <div class="filters">
+            <div class="filter-group">
+                <label for="sortBy">Sort by:</label>
+                <select id="sortBy">
+                    <option value="priority">Priority</option>
+                    <option value="difficulty">Difficulty</option>
+                    <option value="date">Creation Date</option>
+                </select>
+            </div>
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Search tasks...">
+            </div>
+        </div>
+
+        <div class="task-list" id="taskList">
+            <!-- Tasks will be inserted here -->
+            <div class="loading" id="loadingIndicator">Loading tasks...</div>
+        </div>
+    </div>
+
+    <template id="taskItemTemplate">
+        <div class="task-item">
+            <div class="task-status"></div>
+            <div class="task-content">
+                <div class="task-text"></div>
+                <div class="task-meta">
+                    <span class="task-priority"></span>
+                    <span class="task-difficulty"></span>
+                    <span class="task-date"></span>
+                    <span class="task-file"></span>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <script src="${scriptUri}"></script>
+</body>
+</html>

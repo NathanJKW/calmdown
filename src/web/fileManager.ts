@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 
-export async function ensureTemplatesExist(context: vscode.ExtensionContext): Promise<vscode.Uri> {
+export async function ensureTemplatesExist(context?: vscode.ExtensionContext): Promise<vscode.Uri> {
     try {
         // Get configuration
         const config = vscode.workspace.getConfiguration('calmdown');
@@ -23,7 +23,7 @@ export async function ensureTemplatesExist(context: vscode.ExtensionContext): Pr
             await vscode.workspace.fs.createDirectory(templatesDir);
             
             // Copy default templates
-            const defaultTemplatesDir = vscode.Uri.joinPath(context.extensionUri, '.templates');
+            const defaultTemplatesDir = vscode.Uri.joinPath(context?.extensionUri || vscode.Uri.file(''), '.templates');
             const files = await vscode.workspace.fs.readDirectory(defaultTemplatesDir);
             
             // Copy each template file
@@ -49,7 +49,7 @@ export async function ensureTemplatesExist(context: vscode.ExtensionContext): Pr
     }
 }
 
-export async function getTemplateContent(context: vscode.ExtensionContext, templateName = 'daily'): Promise<string> {
+export async function getTemplateContent(context?: vscode.ExtensionContext, templateName = 'daily'): Promise<string> {
     try {
         // Get configuration
         const config = vscode.workspace.getConfiguration('calmdown');
@@ -74,7 +74,7 @@ export async function getTemplateContent(context: vscode.ExtensionContext, templ
             return new TextDecoder().decode(content);
         } catch {
             // Fall back to default template
-            const templateUri = vscode.Uri.joinPath(context.extensionUri, '.templates', `${templateName}.md`);
+            const templateUri = vscode.Uri.joinPath(context?.extensionUri || vscode.Uri.file(''), '.templates', `${templateName}.md`);
             try {
                 const templateData = await vscode.workspace.fs.readFile(templateUri);
                 return new TextDecoder().decode(templateData);
@@ -89,7 +89,7 @@ export async function getTemplateContent(context: vscode.ExtensionContext, templ
     }
 }
 
-export async function createNote(dateString: string, context: vscode.ExtensionContext): Promise<void> {
+export async function createNote(dateString: string, context?: vscode.ExtensionContext): Promise<void> {
     try {
         // Validate date string (format: YYYY-MM-DD)
         if (!isValidDateString(dateString)) {
