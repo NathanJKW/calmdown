@@ -4,7 +4,7 @@ export interface Task {
     text: string;
     priority: number;
     difficulty: number;
-    creationDate: string;
+    dueDate: string;  // Changed from creationDate to dueDate
     filePath: string;
     line: number;
     status: 'TODO' | 'COMPLETE';
@@ -22,7 +22,7 @@ export function parseTask(line: string, filePath: string, lineNumber: number): T
             text: match[4].trim(),
             priority: parseInt(match[1]),
             difficulty: parseInt(match[2]),
-            creationDate: match[3],
+            dueDate: match[3],  // This is now properly labeled as dueDate
             filePath,
             line: lineNumber,
             status: 'TODO'
@@ -35,7 +35,7 @@ export function parseTask(line: string, filePath: string, lineNumber: number): T
             text: match[4].trim(),
             priority: parseInt(match[1]),
             difficulty: parseInt(match[2]),
-            creationDate: match[3],
+            dueDate: match[3],  // This is now properly labeled as dueDate
             filePath,
             line: lineNumber,
             status: 'COMPLETE'

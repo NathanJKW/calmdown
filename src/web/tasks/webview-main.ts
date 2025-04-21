@@ -2,7 +2,7 @@ interface Task {
     text: string;
     priority: number;
     difficulty: number;
-    creationDate: string;
+    dueDate: string;  // Changed from creationDate to dueDate
     filePath: string;
     line: number;
     status: 'TODO' | 'COMPLETE';
@@ -139,7 +139,7 @@ function renderTasks(): void {
         taskDifficultyEl.textContent = task.difficulty.toString();
         
         // Format date
-        const date = `${task.creationDate.substring(0, 2)}-${task.creationDate.substring(2, 4)}-${task.creationDate.substring(4, 6)}`;
+        const date = `${task.dueDate.substring(0, 2)}-${task.dueDate.substring(2, 4)}-${task.dueDate.substring(4, 6)}`;
         const taskDateEl = taskElement.querySelector('.task-date') as HTMLElement;
         taskDateEl.textContent = date;
         
@@ -185,7 +185,7 @@ function filterAndSortTasks(): Task[] {
             case 'difficulty':
                 return b.difficulty - a.difficulty;
             case 'date':
-                return a.creationDate.localeCompare(b.creationDate);
+                return a.dueDate.localeCompare(b.dueDate);
             default:
                 return 0;
         }

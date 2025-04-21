@@ -1,5 +1,5 @@
 /**
- * Format date as YYMMDD for task markers
+ * Format date as YYMMDD for task due dates
  */
 export function formatDateForTask(date: Date): string {
     const yy = date.getFullYear().toString().substring(2, 4);
@@ -34,7 +34,7 @@ export function formatDateLong(date: Date): string {
  */
 export function parseTaskDate(dateStr: string): Date {
     if (dateStr.length !== 6) {
-        throw new Error(`Invalid task date format: ${dateStr}`);
+        throw new Error(`Invalid task due date format: ${dateStr}`);
     }
     
     const yy = parseInt(dateStr.substring(0, 2));
@@ -74,30 +74,32 @@ export function formatTaskDateForDisplay(dateStr: string): string {
 }
 
 /**
- * Get relative date description (e.g., Today, Yesterday, 3 days ago)
+ * Get relative date description for due dates (e.g., Today, Tomorrow, 3 days from now)
  */
 export function getRelativeDateDescription(dateStr: string): string {
     try {
-        const taskDate = parseTaskDate(dateStr);
+        const dueDate = parseTaskDate(dateStr);
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         
-        const taskDay = new Date(taskDate);
+        const taskDay = new Date(dueDate);
         taskDay.setHours(0, 0, 0, 0);
         
-        const diffDays = Math.floor((today.getTime() - taskDay.getTime()) / (1000 * 60 * 60 * 24));
+        const diffDays = Math.floor((taskDay.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
         
-        if (diffDays === 0) {
-            return 'Today';
+        if (diffDays < 0) {
+            return diffDays === -1 ? 'Due Yesterday' : `${Math.abs(diffDays)} days overdue`;
+        } else if (diffDays === 0) {
+            return 'Due Today';
         } else if (diffDays === 1) {
-            return 'Yesterday';
+            return 'Due Tomorrow';
         } else if (diffDays < 7) {
-            return `${diffDays} days ago`;
+            return `Due in ${diffDays} days`;
         } else if (diffDays < 30) {
             const weeks = Math.floor(diffDays / 7);
-            return `${weeks} week${weeks > 1 ? 's' : ''} ago`;
+            return `Due in ${weeks} week${weeks > 1 ? 's' : ''}`;
         } else {
-            return formatDateLong(taskDate);
+            return `Due on ${formatDateLong(dueDate)}`;
         }
     } catch {
         return formatTaskDateForDisplay(dateStr);

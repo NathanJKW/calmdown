@@ -139,6 +139,7 @@ export class TaskScanner {
             
             for (let i = 0; i < document.lineCount; i++) {
                 const line = document.lineAt(i).text;
+                // When parsing tasks, ensure we're interpreting the date as due date
                 const task = parseTask(line, file.fsPath, i);
                 
                 if (task) {

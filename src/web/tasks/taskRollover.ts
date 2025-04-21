@@ -32,7 +32,7 @@ export async function rollTasksToToday(): Promise<void> {
             
             console.log(`Total open tasks found: ${allOpenTasks.length}`);
 
-            // Filter tasks to get only those from past notes
+            // Filter tasks to get only those that are past due or due today
             const pastTasks = filterPastTasks(allOpenTasks, todayDateStr);
 
             console.log(`Past tasks to roll over: ${pastTasks.length}`);
@@ -87,32 +87,20 @@ export async function rollTasksToToday(): Promise<void> {
 }
 
 /**
- * Filter tasks to get only those from past notes
+ * Filter tasks to get only those that are past due or due today
  */
 function filterPastTasks(allTasks: Task[], todayDateStr: string): Task[] {
     return allTasks.filter(task => {
         try {
-            // Extract filename from path (handling both Windows and Unix paths)
-            const pathParts = task.filePath.split(/[\/\\]/);
-            const filename = pathParts[pathParts.length - 1];
+            // Compare due date with today's date
+            const dueDate = parseTaskDate(task.dueDate);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
             
-            if (!filename.endsWith('.md')) {
-                return false;
-            }
-            
-            // Extract date from filename (remove .md extension)
-            const filenamePart = filename.substring(0, filename.length - 3);
-            
-            // Check if filename follows YYYY-MM-DD format
-            if (!/^\d{4}-\d{2}-\d{2}$/.test(filenamePart)) {
-                console.log(`Skipping task in file with non-date name: ${filename}`);
-                return false;
-            }
-            
-            // Compare dates
-            return filenamePart < todayDateStr;
+            // Include tasks that are due today or past due
+            return dueDate <= today;
         } catch (err) {
-            console.error(`Error processing task path: ${task.filePath}`, err);
+            console.error(`Error parsing due date: ${err}`);
             return false;
         }
     });
@@ -180,7 +168,7 @@ async function addTasksToTodaysNote(
         
         // Add each task
         for (const task of tasks) {
-            const taskLine = `-=TODO ${task.priority} ${task.difficulty} ${task.creationDate}=- ${task.text}\n`;
+            const taskLine = `-=TODO ${task.priority} ${task.difficulty} ${task.dueDate}=- ${task.text}\n`;
             editBuilder.insert(insertPosition, taskLine);
             insertPosition = new vscode.Position(insertPosition.line + 1, 0);
         }
