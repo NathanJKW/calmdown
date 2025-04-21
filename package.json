@@ -20,6 +20,17 @@
       {
         "command": "calmdown.openCalmdown",
         "title": "Calmdown: Open Dashboard"
+      },
+      {
+        "command": "calmdown.toggleTaskState",
+        "title": "Calmdown: Toggle Task State"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "calmdown.toggleTaskState",
+        "key": "ctrl+`",
+        "when": "editorTextFocus && editorLangId == markdown"
       }
     ],
     "viewsContainers": {
