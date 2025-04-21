@@ -241,7 +241,7 @@ export function createWebviewScript(): string {
             taskElement.querySelector('.task-difficulty').textContent = task.difficulty.toString();
             
             // Format date
-            const date = \`\${task.creationDate.substring(0, 2)}-\${task.creationDate.substring(2, 4)}-\${task.creationDate.substring(4, 6)}\`;
+            const date = \`\${task.dueDate.substring(0, 2)}-\${task.dueDate.substring(2, 4)}-\${task.dueDate.substring(4, 6)}\`;
             taskElement.querySelector('.task-date').textContent = date;
             
             // Get filename from path
@@ -285,7 +285,7 @@ export function createWebviewScript(): string {
                 case 'difficulty':
                     return b.difficulty - a.difficulty;
                 case 'date':
-                    return a.creationDate.localeCompare(b.creationDate);
+                    return a.dueDate.localeCompare(b.dueDate);
                 default:
                     return 0;
             }

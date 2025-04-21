@@ -40,7 +40,7 @@ export class TasksViewProvider implements vscode.WebviewViewProvider {
                         text: task.text,
                         priority: task.priority,
                         difficulty: task.difficulty,
-                        date: task.creationDate,
+                        date: task.dueDate,
                         filePath: task.filePath,
                         line: task.line
                     }))
@@ -91,7 +91,7 @@ export class TasksViewProvider implements vscode.WebviewViewProvider {
                                 text: message.task.text,
                                 priority: message.task.priority, 
                                 difficulty: message.task.difficulty,
-                                creationDate: message.task.date,
+                                dueDate: message.task.date,
                                 filePath: message.task.filePath,
                                 line: message.task.line,
                                 status: 'TODO'
