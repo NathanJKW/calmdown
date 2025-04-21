@@ -16,23 +16,32 @@
       {
         "command": "calmdown.openCalendar",
         "title": "Calmdown: Open Calendar"
+      },
+      {
+        "command": "calmdown.openCalmdown",
+        "title": "Calmdown: Open Dashboard"
       }
     ],
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "calmdown-sidebar",
+          "id": "calmdown-container",
           "title": "Calmdown",
           "icon": "src/web/calendar.svg"
         }
       ]
     },
     "views": {
-      "calmdown-sidebar": [
+      "calmdown-container": [
         {
-          "type": "webview",
           "id": "calmdown.calendarView",
-          "name": "Calendar"
+          "name": "Calendar",
+          "type": "webview"
+        },
+        {
+          "id": "calmdown.tasksView",
+          "name": "Recent Tasks",
+          "type": "webview"
         }
       ]
     },
