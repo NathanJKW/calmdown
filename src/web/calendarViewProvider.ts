@@ -74,8 +74,8 @@ export class CalendarViewProvider implements vscode.WebviewViewProvider {
     private _getWebviewContent(webview: vscode.Webview): string {
         try {
             // Get paths to style and script files
-            const cssPath = vscode.Uri.joinPath(this._extensionUri, 'media', 'styles', 'calendar.css');
-            const jsPath = vscode.Uri.joinPath(this._extensionUri, 'media', 'scripts', 'calendar.js');
+            const cssPath = vscode.Uri.joinPath(this._extensionUri, 'src', 'web', 'calendar', 'calendar.css');
+            const jsPath = vscode.Uri.joinPath(this._extensionUri, 'src', 'web', 'calendar', 'calendar.js');
 
             // Verify resources exist (for browser extension we can't directly check files)
             // Instead, we'll handle potential loading errors in the HTML

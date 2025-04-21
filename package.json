@@ -23,7 +23,7 @@
         {
           "id": "calmdown-sidebar",
           "title": "Calmdown",
-          "icon": "media/calendar.svg"
+          "icon": "src/web/calendar.svg"
         }
       ]
     },
